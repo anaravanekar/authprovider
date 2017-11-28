@@ -284,6 +284,7 @@ public class CustomDirectory extends DirectoryDefault {
 			userRows.add(userObject);
 			userObjectList.setRows(userRows);
 			response = orchestraRestClient.insert("Bebx-directory","ebx-directory","directory/users",userObjectList,parameters);
+			response = orchestraRestClient.insert("BReference","Account","root/AssignTo",userObjectList,parameters);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
