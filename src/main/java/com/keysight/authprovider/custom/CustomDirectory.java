@@ -11,11 +11,11 @@ import com.orchestranetworks.instance.Repository;
 import com.orchestranetworks.schema.Path;
 import com.orchestranetworks.service.*;
 import com.orchestranetworks.service.directory.*;
+import org.yaml.snakeyaml.Yaml;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.core.Response;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.URI;
 import java.util.*;
 import java.util.logging.Logger;
@@ -66,6 +66,8 @@ public class CustomDirectory extends DirectoryDefault {
 		public boolean isMember = false;
 		public long expiration = 0;
 	}
+
+	private Map<String,Object> propertiesCache;
 
 	public CustomDirectory(AdaptationHome aHome){
 		super(aHome);
@@ -515,18 +517,45 @@ public class CustomDirectory extends DirectoryDefault {
 	}
 
 	private RestProperties getRestProperties(){
+		Map<String,Object> ebxRestProperties = (Map<String,Object>)((Map<String,Object>)((Map<String,Object>)getPropertiesMap().get("keysight")).get("rest")).get("orchestra");
 		RestProperties restProperties = new RestProperties();
 		Orchestra orchestra = new Orchestra();
-		orchestra.setHost("localhost");
-		orchestra.setSsl("false");
-		orchestra.setUsername("admin");
-		orchestra.setPassword("Serene*123");
-		orchestra.setPort("9999");
-		orchestra.setBaseURI("/ebx-dataservices/rest/data/");
-		orchestra.setVersion("v1");
+		orchestra.setHost(String.valueOf(ebxRestProperties.get("host")));
+		orchestra.setSsl(String.valueOf(ebxRestProperties.get("ssl")));
+		orchestra.setUsername(String.valueOf(ebxRestProperties.get("username")));
+		orchestra.setPassword(String.valueOf(ebxRestProperties.get("password")));
+		orchestra.setPort(String.valueOf(ebxRestProperties.get("port")));
+		orchestra.setBaseURI(String.valueOf(ebxRestProperties.get("baseURI")));
+		orchestra.setVersion(String.valueOf(ebxRestProperties.get("version")));
 		orchestra.setConnectTimeout(5000);
 		orchestra.setReadTimeout(70000);
 		restProperties.setOrchestra(orchestra);
 		return restProperties;
+	}
+
+	private Map<String,Object> getPropertiesMap(){
+		Map<String,Object> result = null;
+		Yaml yaml = new Yaml();
+		if(propertiesCache!=null){
+			result = propertiesCache;
+		}else {
+			String location = System.getProperty("spring.config.location");
+			String fileName = System.getProperty("spring.config.name");
+			String profile = System.getProperty("spring.profiles.active");
+			String filePath = location + fileName + "-" + profile + ".yml";
+			System.out.println("Reading EBX REST config from " + filePath);
+			InputStream ios = null;
+			try {
+				ios = new FileInputStream(new File(filePath));
+				result = (Map<String, Object>) yaml.load(ios);
+				propertiesCache = result;
+			} catch (FileNotFoundException e) {
+				logger.severe("Error reading EBX REST config from external file " + e.getMessage());
+			}
+		}
+		if(result==null){
+			throw new RuntimeException("Error reading EBX REST config from external file");
+		}
+		return result;
 	}
 }
