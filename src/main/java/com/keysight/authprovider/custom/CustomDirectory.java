@@ -11,6 +11,7 @@ import com.orchestranetworks.instance.Repository;
 import com.orchestranetworks.schema.Path;
 import com.orchestranetworks.service.*;
 import com.orchestranetworks.service.directory.*;
+import org.jasypt.util.text.BasicTextEncryptor;
 import org.yaml.snakeyaml.Yaml;
 
 import javax.servlet.http.HttpServletRequest;
@@ -517,13 +518,15 @@ public class CustomDirectory extends DirectoryDefault {
 	}
 
 	private RestProperties getRestProperties(){
+		BasicTextEncryptor bte = new BasicTextEncryptor();
+		bte.setPassword(System.getProperty("jasypt.encryptor.password"));
 		Map<String,Object> ebxRestProperties = (Map<String,Object>)((Map<String,Object>)((Map<String,Object>)getPropertiesMap().get("keysight")).get("rest")).get("orchestra");
 		RestProperties restProperties = new RestProperties();
 		Orchestra orchestra = new Orchestra();
 		orchestra.setHost(String.valueOf(ebxRestProperties.get("host")));
 		orchestra.setSsl(String.valueOf(ebxRestProperties.get("ssl")));
 		orchestra.setUsername(String.valueOf(ebxRestProperties.get("username")));
-		orchestra.setPassword(String.valueOf(ebxRestProperties.get("password")));
+		orchestra.setPassword(bte.decrypt(String.valueOf(ebxRestProperties.get("password")).replaceFirst("ENC\\(","").replace(")","")));
 		orchestra.setPort(String.valueOf(ebxRestProperties.get("port")));
 		orchestra.setBaseURI(String.valueOf(ebxRestProperties.get("baseURI")));
 		orchestra.setVersion(String.valueOf(ebxRestProperties.get("version")));
