@@ -519,7 +519,7 @@ public class CustomDirectory extends DirectoryDefault {
 
 	private RestProperties getRestProperties(){
 		BasicTextEncryptor bte = new BasicTextEncryptor();
-		bte.setPassword(System.getProperty("jasypt.encryptor.password"));
+		bte.setPassword("WJ~%$(sMJKbVA2m!");
 		Map<String,Object> ebxRestProperties = (Map<String,Object>)((Map<String,Object>)((Map<String,Object>)getPropertiesMap().get("keysight")).get("rest")).get("orchestra");
 		RestProperties restProperties = new RestProperties();
 		Orchestra orchestra = new Orchestra();
