@@ -358,8 +358,10 @@ public class CustomDirectory extends DirectoryDefault {
 			// Try with URL parameters
 			uname = req.getParameter("login");
 			password = req.getParameter("password");
-			if( uname!=null && password!=null )
+			if( uname!=null && password!=null ) {
+				uname = uname.toLowerCase();
 				user = authenticateUserFromLoginPassword(uname, password);
+			}
 		}
 
 		if( user==null ) {
