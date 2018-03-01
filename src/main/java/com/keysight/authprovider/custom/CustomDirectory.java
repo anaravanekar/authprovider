@@ -249,7 +249,7 @@ public class CustomDirectory extends DirectoryDefault {
 					if(ebxRoles.get(entry.getValue())!=null) {
 						OrchestraObject orchestraObject = new OrchestraObject();
 						Map<String,OrchestraContent> content = new HashMap<String, OrchestraContent>();
-						content.put("user",new OrchestraContent(userId));
+						content.put("user",new OrchestraContent(userId.toLowerCase()));
 						content.put("role",new OrchestraContent(ebxRoles.get(entry.getValue())));
 						orchestraObject.setContent(content);
 						rows.add(orchestraObject);
@@ -279,7 +279,7 @@ public class CustomDirectory extends DirectoryDefault {
 			List<OrchestraObject> userRows = new ArrayList<>();
 			OrchestraObject userObject = new OrchestraObject();
 			Map<String,OrchestraContent> userFields = new HashMap<String, OrchestraContent>();
-			userFields.put("login",new OrchestraContent(userId));
+			userFields.put("login",new OrchestraContent(userId.toLowerCase()));
 			userFields.put("firstName",new OrchestraContent(userFirstName));
 			userFields.put("lastName",new OrchestraContent(userLastName));
 			userFields.put("email",new OrchestraContent(userEmail));
