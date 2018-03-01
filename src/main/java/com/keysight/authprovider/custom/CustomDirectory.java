@@ -170,6 +170,9 @@ public class CustomDirectory extends DirectoryDefault {
 			return this.adminUser;
 		}
 		try {
+			if(login!=null){
+				login=login.toLowerCase();
+			}
 			if( extDir!=null && extDir.authenticateLogin(login, password) ){
 				user = UserReference.forUser(login);
 			}
