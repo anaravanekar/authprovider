@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--XML schema generated from EBX5 DMA instance [reference=CUS.COCO] on Mon Oct 27 15:10:16 EDT 2014 by user [M615722].-->
+<xs:schema xmlns:osd="urn:ebx-schemas:common_1.0" xmlns:fmt="urn:ebx-schemas:format_1.0" xmlns:ebxbnd="urn:ebx-schemas:binding_1.0" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:ebxs="urn:ebx-schemas:session_1.0">
+    <xs:import namespace="urn:ebx-schemas:common_1.0" schemaLocation="http://schema.orchestranetworks.com/common_1.0.xsd"/>
+    <xs:import namespace="urn:ebx-schemas:session_1.0" schemaLocation="http://schema.orchestranetworks.com/session_1.0.xsd"/>
+    <xs:annotation>
+        <xs:appinfo>
+            <osd:inheritance>
+                <dataSetInheritance>none</dataSetInheritance>
+            </osd:inheritance>
+        </xs:appinfo>
+    </xs:annotation>
+    <xs:element name="root" osd:access="--">
+        <xs:complexType>
+            <xs:sequence>
+                <xs:element name="Users" minOccurs="0" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:annotation>
+                            <xs:appinfo>
+                                <osd:table>
+                                    <primaryKeys>/userId </primaryKeys>
+                                    <historyProfile>UserDirectory</historyProfile>
+                                </osd:table>
+                                <osd:trigger class="com.orchestranetworks.ps.historycustomdirectory.UsersTrigger"/>
+                            </xs:appinfo>
+                        </xs:annotation>
+                        <xs:sequence>
+                            <xs:element name="userId" minOccurs="1" maxOccurs="1">
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                        <xs:maxLength value="250"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+								<xs:annotation>
+                                    <xs:documentation xml:lang="en-US">
+                                        <osd:label>User Id</osd:label>
+                                        <osd:description>User Id</osd:description>
+                                    </xs:documentation>
+                                </xs:annotation>
+                            </xs:element>
+                            
+                            <xs:element name="password" minOccurs="0" maxOccurs="1">
+                                <xs:simpleType>
+                                    <xs:restriction base="osd:password">
+                                        <xs:maxLength value="250"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+								<xs:annotation>
+                                    <xs:documentation xml:lang="en-US">
+                                        <osd:label>Password</osd:label>
+                                        <osd:description>Password</osd:description>
+                                    </xs:documentation>
+                                </xs:annotation>
+                            </xs:element>
+                            
+                            <xs:element name="firstName" minOccurs="1" maxOccurs="1">
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                        <xs:maxLength value="250"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+								<xs:annotation>
+                                    <xs:documentation xml:lang="en-US">
+                                        <osd:label>First Name</osd:label>
+                                        <osd:description>First Name</osd:description>
+                                    </xs:documentation>
+                                </xs:annotation>
+                            </xs:element>
+                            
+                            <xs:element name="lastName" minOccurs="1" maxOccurs="1">
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                        <xs:maxLength value="250"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+								<xs:annotation>
+                                    <xs:documentation xml:lang="en-US">
+                                        <osd:label>Last Name</osd:label>
+                                        <osd:description>Last Name</osd:description>
+                                    </xs:documentation>
+                                </xs:annotation>
+                            </xs:element>
+                            
+                            <xs:element name="email" minOccurs="1" maxOccurs="1">
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                        <xs:maxLength value="250"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+								<xs:annotation>
+                                    <xs:documentation xml:lang="en-US">
+                                        <osd:label>Email</osd:label>
+                                        <osd:description>Email</osd:description>
+                                    </xs:documentation>
+                                </xs:annotation>
+                            </xs:element>
+                            
+                            <xs:element name="isEbxAdmin" minOccurs="1" maxOccurs="1">
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:boolean">                                        
+                                    </xs:restriction>
+                                </xs:simpleType>
+								<xs:annotation>
+                                    <xs:documentation xml:lang="en-US">
+                                        <osd:label>Is Ebx Amdin</osd:label>
+                                        <osd:description>Is Ebx Amdin</osd:description>
+                                    </xs:documentation>
+                                </xs:annotation>
+                            </xs:element>
+
+                            <xs:element name="passwordLastUpdate" type="xs:dateTime" minOccurs="0" maxOccurs="1">
+                                <xs:annotation>
+                                    <xs:documentation xml:lang="en-US">
+                                        <osd:label>Password Last Update</osd:label>
+                                        <osd:description>Password Last Update</osd:description>
+                                    </xs:documentation>
+                                </xs:annotation>
+                            </xs:element>
+
+                            <xs:element name="roles" minOccurs="0" maxOccurs="0">
+                                <xs:annotation>
+                                    <xs:documentation xml:lang="en-US">
+                                        <osd:label>Roles</osd:label>
+                                    </xs:documentation>
+                                    <xs:appinfo>
+                                        <osd:association>
+                                            <tableRefInverse>
+                                                <fieldToSource>/root/UserRole/userId</fieldToSource>
+                                            </tableRefInverse>
+                                        </osd:association>
+                                        <osd:defaultView>
+                                            <hiddenInDataServices>true</hiddenInDataServices>
+                                            <displayMode>inline</displayMode>
+                                        </osd:defaultView>
+                                    </xs:appinfo>
+                                </xs:annotation>
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                        <xs:maxLength value="250"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+                            </xs:element>
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="Roles" minOccurs="0" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:annotation>
+                            <xs:appinfo>
+                                <osd:table>
+                                    <primaryKeys>/roleId </primaryKeys>
+                                    <historyProfile>UserDirectory</historyProfile>
+                                </osd:table>
+                            </xs:appinfo>
+                        </xs:annotation>
+                        <xs:sequence>
+                            <xs:element name="roleId" minOccurs="1" maxOccurs="1">
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                        <xs:maxLength value="250"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+								<xs:annotation>
+                                    <xs:documentation xml:lang="en-US">
+                                        <osd:label>Role</osd:label>
+                                        <osd:description>Role</osd:description>
+                                    </xs:documentation>
+                                </xs:annotation>
+                            </xs:element>
+                            <xs:element name="name" minOccurs="1" maxOccurs="1">
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                        <xs:maxLength value="250"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+								<xs:annotation>
+                                    <xs:documentation xml:lang="en-US">
+                                        <osd:label>Name</osd:label>
+                                        <osd:description>Name</osd:description>
+                                    </xs:documentation>
+                                </xs:annotation>
+                            </xs:element>
+                            <xs:element name="description" minOccurs="1" maxOccurs="1">
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                        <xs:maxLength value="250"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+								<xs:annotation>
+                                    <xs:documentation xml:lang="en-US">
+                                        <osd:label>Description</osd:label>
+                                        <osd:description>Description</osd:description>
+                                    </xs:documentation>
+                                </xs:annotation>								
+                            </xs:element>
+                            
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+                <xs:element name="UserRole" minOccurs="0" maxOccurs="unbounded">
+                    <xs:complexType>
+                        <xs:annotation>
+                            <xs:appinfo>
+                                <osd:table>
+                                    <primaryKeys>/userId /roleId</primaryKeys>
+                                    <historyProfile>UserDirectory</historyProfile>
+                                </osd:table>
+                            </xs:appinfo>
+							<xs:documentation xml:lang="en-US">
+								<osd:label>User Role</osd:label>
+								<osd:description>User Role</osd:description>
+							</xs:documentation>								
+                        </xs:annotation>
+                        <xs:sequence>
+                            <xs:element name="userId" minOccurs="1" maxOccurs="1">
+                            	<xs:annotation>
+                                    <xs:appinfo>
+                                        <osd:otherFacets>
+                                            <osd:tableRef>
+                                                <tablePath>/root/Users</tablePath>
+                                            </osd:tableRef>
+                                        </osd:otherFacets>
+                                    </xs:appinfo>
+                                    <xs:documentation xml:lang="en-US">
+                                        <osd:label>User Id</osd:label>
+                                        <osd:description>User Id</osd:description>
+                                    </xs:documentation>									
+                            	</xs:annotation>
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                        <xs:maxLength value="250"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+                            </xs:element>
+                            <xs:element name="roleId" minOccurs="1" maxOccurs="1">
+                            	<xs:annotation>
+                                    <xs:appinfo>
+                                        <osd:otherFacets>
+                                            <osd:tableRef>
+                                                <tablePath>/root/Roles</tablePath>
+                                            </osd:tableRef>
+                                        </osd:otherFacets>
+                                    </xs:appinfo>
+                                    <xs:documentation xml:lang="en-US">
+                                        <osd:label>Role</osd:label>
+                                        <osd:description>Role</osd:description>
+                                    </xs:documentation>										
+                            	</xs:annotation>
+                                <xs:simpleType>
+                                    <xs:restriction base="xs:string">
+                                        <xs:maxLength value="250"/>
+                                    </xs:restriction>
+                                </xs:simpleType>
+                            </xs:element>
+                            
+                        </xs:sequence>
+                    </xs:complexType>
+                </xs:element>
+            </xs:sequence>
+        </xs:complexType>
+    </xs:element>
+</xs:schema>

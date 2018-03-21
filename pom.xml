@@ -5,7 +5,9 @@
 	<groupId>com.keysight</groupId>
 	<artifactId>ebxldapauth</artifactId>
 	<version>1.0</version>
+	<packaging>war</packaging>
 	<build>
+		<finalName>customdirectory</finalName>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -15,9 +17,39 @@
 					<target>1.8</target>
 				</configuration>
 			</plugin>
+<!--			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>3.1.0</version>
+				<configuration>
+					<filters>
+						<filter>src/assembly/filter.properties</filter>
+					</filters>
+					<descriptors>
+						<descriptor>src/assembly/src.xml</descriptor>
+					</descriptors>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>3.0.2</version>
+				<configuration>
+					<archive>
+						<manifest>
+							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>-->
+			<plugin>
+                <artifactId>maven-war-plugin</artifactId>
+                <version>3.2.0</version>
+                <configuration>
+                    <packagingExcludes>WEB-INF\lib\aopalliance-repackaged-2.5.0-b32.jar,WEB-INF\lib\hk2-api-2.5.0-b32.jar,WEB-INF\lib\hk2-locator-2.5.0-b32.jar,WEB-INF\lib\hk2-utils-2.5.0-b32.jar,WEB-INF\lib\jackson-annotations-2.8.4.jar,WEB-INF\lib\jackson-core-2.8.4.jar,WEB-INF\lib\jackson-databind-2.8.4.jar,WEB-INF\lib\jackson-jaxrs-base-2.8.4.jar,WEB-INF\lib\jackson-jaxrs-json-provider-2.8.4.jar,WEB-INF\lib\jackson-module-jaxb-annotations-2.8.4.jar,WEB-INF\lib\javassist-3.20.0-GA.jar,WEB-INF\lib\javax.annotation-api-1.2.jar,WEB-INF\lib\javax.inject-2.5.0-b32.jar,WEB-INF\lib\javax.ws.rs-api-2.0.1.jar,WEB-INF\lib\jersey-client-2.25.1.jar,WEB-INF\lib\jersey-common-2.25.1.jar,WEB-INF\lib\jersey-entity-filtering-2.25.1.jar,WEB-INF\lib\jersey-guava-2.25.1.jar,WEB-INF\lib\jersey-media-json-jackson-2.25.1.jar,WEB-INF\lib\osgi-resource-locator-1.0.1.jar,WEB-INF\lib\jasypt-1.9.2.jar</packagingExcludes>
+                </configuration>
+            </plugin>
 		</plugins>
 	</build>
-	<packaging>jar</packaging>
 
 	<name>authprovider</name>
 	<url>http://maven.apache.org</url>
