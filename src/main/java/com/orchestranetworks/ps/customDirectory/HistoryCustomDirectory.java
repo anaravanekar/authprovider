@@ -322,14 +322,6 @@ public class HistoryCustomDirectory extends Directory {
 		final String inputUserPassword = DirectoryDefault.encryptString(aPassword);
 
 		if (realUserPassword!=null && realUserPassword.equals(inputUserPassword)) {
-			Runnable updateUserInfoInCustomDirectory = () -> {
-				try {
-					upsertUser(aLogin,extDir.searchUser(aLogin, aPassword));
-				} catch (Exception e) {
-					LOGGER.severe("Exception while updating user info in custom directory from LDAP : "+ e.getMessage());
-				}
-			};
-			new Thread(updateUserInfoInCustomDirectory).start();
 			return UserReference.forUser(aLogin.toLowerCase());
 		} else if(extDir!=null){
 			ArrayList<AbstractMap.SimpleEntry<String, String>> userInfo = null;
