@@ -313,7 +313,7 @@ public class HistoryCustomDirectory extends Directory {
 			}
 		}
 
-		final Adaptation userRecord = new HistoryDao(this.repo).lookupUser(aLogin);
+		final Adaptation userRecord = new HistoryDao(this.repo).lookupUser(aLogin.toLowerCase());
 		/*if (userRecord == null) {
 			return null;
 		}*/
@@ -322,17 +322,25 @@ public class HistoryCustomDirectory extends Directory {
 		final String inputUserPassword = DirectoryDefault.encryptString(aPassword);
 
 		if (realUserPassword!=null && realUserPassword.equals(inputUserPassword)) {
-			return UserReference.forUser(aLogin);
+			Runnable updateUserInfoInCustomDirectory = () -> {
+				try {
+					upsertUser(aLogin,extDir.searchUser(aLogin, aPassword));
+				} catch (Exception e) {
+					LOGGER.severe("Exception while updating user info in custom directory from LDAP : "+ e.getMessage());
+				}
+			};
+			new Thread(updateUserInfoInCustomDirectory).start();
+			return UserReference.forUser(aLogin.toLowerCase());
 		} else if(extDir!=null){
-			boolean validInExternal = false;
+			ArrayList<AbstractMap.SimpleEntry<String, String>> userInfo = null;
 			try{
-				validInExternal = extDir.authenticateLogin(aLogin, aPassword);
+				userInfo = extDir.searchUser(aLogin, aPassword);
 			}catch(Exception e){
 				LOGGER.severe("Exception while authenticating against external directory: "+ e.getMessage());
 			}
-			if(validInExternal){
-				upsertUser(aLogin,extDir.getUserInfo(aLogin+"|"+aPassword));
-				return UserReference.forUser(aLogin);
+			if(userInfo!=null && !userInfo.isEmpty()){
+				upsertUser(aLogin.toLowerCase(),userInfo);
+				return UserReference.forUser(aLogin.toLowerCase());
 			} else {
 				// Ensure we are up to date if we are rejecting logins
 				updateDirProperties();

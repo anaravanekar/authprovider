@@ -31,4 +31,7 @@ public interface ExternalDirectory  {
 	// Functions for testing
 	public ArrayList<SimpleEntry<String, String>> getUserInfo(final String user);
 	public void interact();
+	public ArrayList<SimpleEntry<String, String>> searchUser(
+			final String login,
+			final String password) throws Exception;
 }

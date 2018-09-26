@@ -54,6 +54,14 @@ public class LdapActiveDirectory implements ExternalDirectory{
 		return null;
 	}
 
+	@Override
+	public boolean authenticateLogin(String login, String password) throws Exception {
+		ArrayList<SimpleEntry<String, String>> res = searchUser(login, password);
+		if(res!=null && !res.isEmpty())
+			return true;
+		return false;
+	}
+
 	public DirContext getDirContext(LdapName login, final String password){
 		return connectToLDAP(login,password);
 	}
@@ -209,24 +217,17 @@ public class LdapActiveDirectory implements ExternalDirectory{
 		}
 		return res;
 	}
-	public boolean authenticateLogin(String user, String password) throws Exception {
-		//Authenticating the user against the Active Directory
-		LdapName login = getLoginForEbxUser(user, password);
-
-		if(login == null){
-			logger.info("LDAP Login not found for " + user);
-			return false;
-		}
-
-		logger.info("Authorizing " + login + ".");
-		DirContext ctx = connectToLDAP(login, password);
-		if(!isUserInRequiredForLoginRole(ctx, UserReference.forUser(user))){
+	public ArrayList<SimpleEntry<String, String>> searchUser(String user, String password) throws Exception {
+		ArrayList<SimpleEntry<String, String>> res = new ArrayList<SimpleEntry<String, String>>();
+		DirContext ctx = connectToLDAP(user, password);
+		boolean isInRole = isUserInRequiredForLoginRole(ctx, user);
+		if(!isInRole){
+			ctx.close();
 			throw new Exception(String.format("Not authorized. user[%s] is not a member of required EBX group within Active Directory. ", user));
 		}
+		res = getAttributes(new LdapName(user),ctx);
 		ctx.close();
-
-
-		return true;
+		return res;
 	}
 
 	private String ldapProp(final String key) {
@@ -240,13 +241,17 @@ public class LdapActiveDirectory implements ExternalDirectory{
 	}
 
 	public Boolean isUserInRequiredForLoginRole(DirContext ctx, final UserReference user) {
+		final String login = user.getUserId();
+		return isUserInRequiredForLoginRole(ctx,login);
+	}
+
+	public Boolean isUserInRequiredForLoginRole(DirContext ctx, final String login) {
 
 		if (this.reqLogin_membershipBase == null) {
 			logger.info("Required for login. No LDAP membership base defined. assuming it is disabled");
 			return true;
 		}
 
-		final String login = user.getUserId();
 		try {			
 			final String filter;
 
@@ -366,14 +371,12 @@ public class LdapActiveDirectory implements ExternalDirectory{
 	protected ArrayList<SimpleEntry<String, String>> getAttributes(
 			final LdapName name, final DirContext extCtx) {
 		ArrayList<SimpleEntry<String, String>> info = new ArrayList<SimpleEntry<String, String>>();
+		DirContext ctx = extCtx;
 		try {
-			DirContext ctx = extCtx;
 			if (ctx == null)
 				return info;//ctx = connectToLDAP();
 
 			Attributes atts = ctx.getAttributes(name);
-			if (ctx != null)
-				ctx.close();
 			for (NamingEnumeration<? extends Attribute> ae = atts.getAll(); ae
 					.hasMore();) {
 				Attribute attr = (Attribute) ae.next();
@@ -385,7 +388,7 @@ public class LdapActiveDirectory implements ExternalDirectory{
 				}
 			}
 		} catch (Exception e) {
-			return null;
+			logger.severe(e.getMessage());
 		}
 		return info;
 	}
