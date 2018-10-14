@@ -2,6 +2,7 @@ package com.keysight.authprovider.custom;
 
 import com.onwbp.adaptation.Adaptation;
 import com.onwbp.base.misc.StringUtils;
+import com.orchestranetworks.ps.customDirectory.LogHelper;
 import com.orchestranetworks.schema.Path;
 import com.orchestranetworks.service.Session;
 import com.orchestranetworks.service.UserReference;
@@ -11,10 +12,6 @@ import javax.naming.NamingEnumeration;
 import javax.naming.NamingException;
 import javax.naming.directory.*;
 import javax.naming.ldap.LdapName;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
 import java.text.MessageFormat;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
@@ -23,7 +20,7 @@ import java.util.Hashtable;
 import java.util.Properties;
 import java.util.logging.Logger;
 
-public class LdapActiveDirectory implements ExternalDirectory{
+public class LdapActiveDirectory implements ExternalDirectory {
 
 	private final static Logger logger = LoggerCustomDirectory.getLogger();
 
@@ -54,19 +51,12 @@ public class LdapActiveDirectory implements ExternalDirectory{
 		return null;
 	}
 
-	@Override
-	public boolean authenticateLogin(String login, String password) throws Exception {
-		ArrayList<SimpleEntry<String, String>> res = searchUser(login, password);
-		if(res!=null && !res.isEmpty())
-			return true;
-		return false;
-	}
-
 	public DirContext getDirContext(LdapName login, final String password){
 		return connectToLDAP(login,password);
 	}
 
 	private DirContext connectToLDAP(LdapName login, final String password) {
+		LogHelper.customDirectoryLog.debug("BEGIN connectToLDAP using LdapName="+login);
 		Hashtable<String, String> env = new Hashtable<String, String>();
 
 		env.put(Context.SECURITY_AUTHENTICATION, "none");
@@ -86,11 +76,11 @@ public class LdapActiveDirectory implements ExternalDirectory{
 		try {
 			DirContext ctx = new InitialDirContext(env);
 //			logger.info("Returning dircontext " + ctx.getEnvironment());
-
+			LogHelper.customDirectoryLog.debug("INITIALIZED DirContext ctx="+ctx);
 			return ctx;
 		} catch (Exception e) {
 			if (login == null) {
-				logger.severe("Exception connecting to LDAP with baseDN.\n" + "LDAP Error: " + e.getMessage());
+				LogHelper.customDirectoryLog.error("Exception  connectToLDAP using LdapName="+login,e);
 			}
 
 			// User not found, or connection exception
@@ -100,24 +90,31 @@ public class LdapActiveDirectory implements ExternalDirectory{
 		}
 	}
 
-	private LdapName getLoginForEbxUser(final String login, final String password) {
+	private LdapName getLoginForEbxUser(final String login, final String password) throws Exception {
 		final DirContext ctx = connectToLDAP(login, password);
+		if(ctx==null){
+			return null;
+		}
+		LogHelper.customDirectoryLog.debug("BEGIN getLoginForEbxUser... getting LdapName using DirContext for login="+login);
 		LdapName res = getLoginForEbxUser(login, ctx);
 		try {
+			LogHelper.customDirectoryLog.debug("END getLoginForEbxUser... received LdapName using DirContext for login="+login);
+			LogHelper.customDirectoryLog.debug("CLOSING DirContext="+ctx);
 			ctx.close();
 		} catch (Exception e) {
-			e.printStackTrace();
+			LogHelper.customDirectoryLog.error("ERROR CLOSING DirContext="+ctx,e);
+			throw new Exception("LDAP authentication failed.. Error occurred while closing DirContext",e);
 		}
 		return res;
 	}
 
 	private DirContext connectToLDAP(String login, String password) {
-
+		LogHelper.customDirectoryLog.debug("BEGIN connectToLDAP login="+login);
 		Hashtable<String, String> env = new Hashtable<String, String>();
 		MessageFormat bindDNFormat = ldapFormat(BIND_DN);
 		String bindDN = bindDNFormat.format(new Object[] { login });
 
-		logger.info("Connecting to LDAP as bindDN." +  bindDN);
+		LogHelper.customDirectoryLog.debug("Connecting to LDAP as bindDN." +  bindDN);
 
 		env.put(Context.PROVIDER_URL, this.ldapPath);
 		env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
@@ -131,15 +128,14 @@ public class LdapActiveDirectory implements ExternalDirectory{
 		try {
 			DirContext ctx = new InitialDirContext(env);
 //			logger.info("LDAPContext " + ctx.getEnvironment());
-
+			LogHelper.customDirectoryLog.debug("INITIALIZED DirContext ctx="+ctx);
 			return ctx;
 		} catch (Exception e) {
-			if (login == null) {
-				logger.severe("Exception connecting to LDAP with baseDN.\n" + "LDAP Error: " + e.getMessage());
-			}
+			LogHelper.customDirectoryLog.error("Exception connecting to LDAP ",e);
 			// User not found, or connection exception
 			// In case there has been an update reload configuration
 			updateDirProperties();
+			LogHelper.customDirectoryLog.debug("END connectToLDAP... Connection failed returning null");
 			return null;
 		}
 
@@ -173,7 +169,7 @@ public class LdapActiveDirectory implements ExternalDirectory{
 				user = new LdapName(res.get(0));
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			LogHelper.customDirectoryLog.error("ERROR in getLoginForEbxUser",e);
 		}
 		logger.info("User " + user + " found.");
 
@@ -186,7 +182,7 @@ public class LdapActiveDirectory implements ExternalDirectory{
 	}
 
 	private ArrayList<String> searchLdapForUser(final DirContext extCtx,
-			final String baseDN, String filter) {	
+			final String baseDN, String filter) {
 		// Create the search controls         
 		SearchControls searchCtls = new SearchControls();
 		ArrayList<String> res = new ArrayList<String>();
@@ -205,29 +201,72 @@ public class LdapActiveDirectory implements ExternalDirectory{
 			while (answer.hasMoreElements())
 			{
 				SearchResult sr = (SearchResult)answer.next();
-				logger.info(">>>" + sr.getName());
+				LogHelper.customDirectoryLog.debug(">>>" + sr.getName());
 				Attributes attrs = sr.getAttributes();
 				Attribute attr = attrs.get("DistinguishedName");
 				res.add(attr.get().toString());
 			}
 
-			extCtx.close();
+			//extCtx.close();
 		} catch (NamingException e) {
-			e.printStackTrace();
+			LogHelper.customDirectoryLog.error("Error in searchLdapForUser",e);
 		}
 		return res;
 	}
+
 	public ArrayList<SimpleEntry<String, String>> searchUser(String user, String password) throws Exception {
-		ArrayList<SimpleEntry<String, String>> res = new ArrayList<SimpleEntry<String, String>>();
+		ArrayList<SimpleEntry<String, String>> userInfo = new ArrayList<SimpleEntry<String, String>>();
+
+
 		DirContext ctx = connectToLDAP(user, password);
-		boolean isInRole = isUserInRequiredForLoginRole(ctx, user);
-		if(!isInRole){
-			ctx.close();
-			throw new Exception(String.format("Not authorized. user[%s] is not a member of required EBX group within Active Directory. ", user));
+		if(ctx==null){
+			throw new Exception("Error... could not connect to LDAP");
 		}
-		res = getAttributes(new LdapName(user),ctx);
-		ctx.close();
-		return res;
+		try {
+			if (!isUserInRequiredForLoginRole(ctx, user)) {
+				throw new Exception(String.format("Not authorized. user[%s] is not a member of required EBX group within Active Directory. ", user));
+			}
+			userInfo = getAttributes(new LdapName(ldapFormat(BIND_DN).format(new Object[] { user })), ctx);
+		} finally {
+			try {
+				if (ctx != null){
+					LogHelper.customDirectoryLog.debug("CLOSING DirContext="+ctx);
+					ctx.close();
+				}
+			} catch (Exception e) {
+				LogHelper.customDirectoryLog.error("ERROR CLOSING DirContext="+ctx,e);
+				throw new Exception("LDAP authentication failed.. Error occurred while closing DirContext",e);
+			}
+		}
+		return userInfo;
+	}
+
+	public boolean authenticateLogin(String user, String password) throws Exception {
+		//Authenticating the user against the Active Directory
+		LdapName login = getLoginForEbxUser(user, password);
+
+		if(login == null){
+			LogHelper.customDirectoryLog.debug("LdapName not found for login="+user+" ... returning false");
+			return false;
+		}
+
+		DirContext ctx = connectToLDAP(login, password);
+		try {
+			if (!isUserInRequiredForLoginRole(ctx, user)) {
+				throw new Exception(String.format("Not authorized. user[%s] is not a member of required EBX group within Active Directory. ", user));
+			}
+		} finally {
+			try {
+				if (ctx != null){
+					LogHelper.customDirectoryLog.debug("CLOSING DirContext="+ctx);
+					ctx.close();
+				}
+			} catch (Exception e) {
+				LogHelper.customDirectoryLog.error("ERROR CLOSING DirContext="+ctx,e);
+				throw new Exception("LDAP authentication failed.. Error occurred while closing DirContext",e);
+			}
+		}
+		return true;
 	}
 
 	private String ldapProp(final String key) {
@@ -240,44 +279,30 @@ public class LdapActiveDirectory implements ExternalDirectory{
 
 	}
 
-	public Boolean isUserInRequiredForLoginRole(DirContext ctx, final UserReference user) {
-		final String login = user.getUserId();
-		return isUserInRequiredForLoginRole(ctx,login);
-	}
-
 	public Boolean isUserInRequiredForLoginRole(DirContext ctx, final String login) {
-
+		LogHelper.customDirectoryLog.debug("BEGIN isUserInRequiredForLoginRole using LDAP DirContext");
 		if (this.reqLogin_membershipBase == null) {
-			logger.info("Required for login. No LDAP membership base defined. assuming it is disabled");
+			LogHelper.customDirectoryLog.info("No LDAP membership base defined. assuming it is disabled");
 			return true;
 		}
 
-		try {			
-			final String filter;
+		final String filter;
 
-			filter = this.reqLogin_membershipFilter.format(new Object[] { login });
+		filter = this.reqLogin_membershipFilter.format(new Object[] { login });
 
-			final ArrayList<String> fetchUserInRole = searchLdapForUser(ctx, this.reqLogin_membershipBase.toString(), filter);
+		final ArrayList<String> fetchUserInRole = searchLdapForUser(ctx, this.reqLogin_membershipBase.toString(), filter);
 
-			if (fetchUserInRole != null && !fetchUserInRole.isEmpty()) {
-				logger.info("Required for login. Results found searching for " + login + " using "
-						+ String.format("base[%s], filter[%s]", this.reqLogin_membershipBase, filter) + ".");
-				return true;
-			}
-
-			logger.info(String.format("Required for login. No results found searching for %s using base[%s], filter[%s]", 
-					login, this.reqLogin_membershipBase, filter));
-			return false;
-		} finally {
-			try {
-				if (ctx != null){
-					ctx.close();
-				}
-			} catch (Exception e) {
-				logger.severe("Exception while closing LDAPContext: "+ e.getMessage());
-			}
+		if (fetchUserInRole != null && !fetchUserInRole.isEmpty()) {
+			LogHelper.customDirectoryLog.info("END isUserInRequiredForLoginRole using LDAP DirContext. Results found searching for " + login + " using "
+					+ String.format("base[%s], filter[%s]", this.reqLogin_membershipBase, filter) + ".");
+			return true;
 		}
+
+		LogHelper.customDirectoryLog.info(String.format("END isUserInRequiredForLoginRole using LDAP DirContext. No results found searching for %s using base[%s], filter[%s]",
+				login, this.reqLogin_membershipBase, filter));
+		return false;
 	}
+
 	public Boolean isUserInRole(UserReference user, String roleId,
 			String roleLabel) {
 		return null;
@@ -371,8 +396,8 @@ public class LdapActiveDirectory implements ExternalDirectory{
 	protected ArrayList<SimpleEntry<String, String>> getAttributes(
 			final LdapName name, final DirContext extCtx) {
 		ArrayList<SimpleEntry<String, String>> info = new ArrayList<SimpleEntry<String, String>>();
-		DirContext ctx = extCtx;
 		try {
+			DirContext ctx = extCtx;
 			if (ctx == null)
 				return info;//ctx = connectToLDAP();
 
@@ -388,7 +413,8 @@ public class LdapActiveDirectory implements ExternalDirectory{
 				}
 			}
 		} catch (Exception e) {
-			logger.severe(e.getMessage());
+			LogHelper.customDirectoryLog.error("Error in getAttributes",e);
+			return null;
 		}
 		return info;
 	}

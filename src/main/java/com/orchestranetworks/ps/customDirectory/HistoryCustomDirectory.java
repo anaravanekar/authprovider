@@ -97,7 +97,7 @@ public class HistoryCustomDirectory extends Directory {
 				extDir.updateDirProperties(props);
 
 		} catch (final Exception ex) {
-			LOGGER.severe("Exception updating directory properties:" + ex.getMessage());
+			LogHelper.customDirectoryLog.error("Exception updating directory properties:" + ex.getMessage());
 		}
 	}
 
@@ -246,28 +246,28 @@ public class HistoryCustomDirectory extends Directory {
 
 	@Override
 	public UserReference authenticateUserFromHttpRequest(HttpServletRequest req) throws AuthenticationException {
-		LOGGER.fine(String.format("historydir.authenticateUserFromHttpRequest[req]..."));
+		LogHelper.customDirectoryLog.debug(String.format("historydir.authenticateUserFromHttpRequest[req]..."));
 		final UserReference user = sso(req);
 
 		if (user == null) {
-			LOGGER.fine("sso didnt work. unknown login request");
+			LogHelper.customDirectoryLog.debug("sso didnt work. unknown login request");
 			return null;
 		}
 
 		if (isUserDefined(user) == false) {
-			LOGGER.fine("sso worked but unknown login in the directories");
+			LogHelper.customDirectoryLog.debug("sso worked but unknown login in the directories");
 			return null;
 		}
 
-		LOGGER.fine(String.format("historydir.urlparameter.become=%s", req.getParameter("become")));
+		LogHelper.customDirectoryLog.debug(String.format("historydir.urlparameter.become=%s", req.getParameter("become")));
 
 		if (customDirectory != null) {
 			final UserReference became = customDirectory.become(this, user, req.getParameter("become"));
 			if (became != null) {
-				LOGGER.fine("became!");
+				LogHelper.customDirectoryLog.debug("became!");
 				return became;
 			} else {
-				LOGGER.fine("not became");
+				LogHelper.customDirectoryLog.debug("not became");
 			}
 		}
 
@@ -280,7 +280,7 @@ public class HistoryCustomDirectory extends Directory {
 
 		if (req.getRemoteUser() != null) {
 			// SSO feature
-			LOGGER.fine(String.format("authenticateUserFromHttpRequest: AUTH-SSO"));
+			LogHelper.customDirectoryLog.debug(String.format("authenticateUserFromHttpRequest: AUTH-SSO"));
 
 			String uname = req.getRemoteUser();
 			if ((uname != null) && (!"".equals(uname))) {
@@ -294,7 +294,7 @@ public class HistoryCustomDirectory extends Directory {
 			return null;
 
 		} else if (customDirectory != null) {
-			LOGGER.fine(String.format("authenticateUserFromHttpRequest: AUTH-DEFAULT"));
+			LogHelper.customDirectoryLog.debug(String.format("authenticateUserFromHttpRequest: AUTH-DEFAULT"));
 			user = customDirectory.authenticateUserFromHttpRequest(req);
 		} else {
 			return null;
@@ -305,14 +305,14 @@ public class HistoryCustomDirectory extends Directory {
 
 	@Override
 	public UserReference authenticateUserFromLoginPassword(final String aLogin, final String aPassword) {
-		LOGGER.fine(String.format("authenticateUserFromLoginPassword[%s][pwd]...", aLogin));
+		LogHelper.customDirectoryLog.debug(String.format("authenticateUserFromLoginPassword[%s][pwd]...", aLogin));
 		if (customDirectory != null) {
 			final UserReference defaultResult = customDirectory.authenticateUserFromLoginPassword(aLogin, aPassword);
 			if (defaultResult != null) {
 				return defaultResult;
 			}
 		}
-
+		LogHelper.customDirectoryLog.debug("Begin search in User Directory dataset for username: "+aLogin.toLowerCase());
 		final Adaptation userRecord = new HistoryDao(this.repo).lookupUser(aLogin.toLowerCase());
 		/*if (userRecord == null) {
 			return null;
@@ -322,21 +322,30 @@ public class HistoryCustomDirectory extends Directory {
 		final String inputUserPassword = DirectoryDefault.encryptString(aPassword);
 
 		if (realUserPassword!=null && realUserPassword.equals(inputUserPassword)) {
+			LogHelper.customDirectoryLog.debug("User found and password matched in User Directory dataset for username: "+aLogin.toLowerCase());
+			LogHelper.customDirectoryLog.debug("Authentication SUCCESSFUL using User Directory dataset returning UserRefernce instance for username: "+aLogin.toLowerCase());
 			return UserReference.forUser(aLogin.toLowerCase());
 		} else if(extDir!=null){
+			LogHelper.customDirectoryLog.debug("User not found or password did not match in User Directory dataset for username: "+aLogin.toLowerCase());
+			LogHelper.customDirectoryLog.debug("Begin search user in LDAP for username: "+aLogin);
 			ArrayList<AbstractMap.SimpleEntry<String, String>> userInfo = null;
 			try{
 				userInfo = extDir.searchUser(aLogin, aPassword);
 			}catch(Exception e){
-				LOGGER.severe("Exception while authenticating against external directory: "+ e.getMessage());
+				LogHelper.customDirectoryLog.error("Exception while authenticating against external directory: ",e);
 			}
 			if(userInfo!=null && !userInfo.isEmpty()){
-				upsertUser(aLogin.toLowerCase(),userInfo);
+				LogHelper.customDirectoryLog.debug("User found and password and role matched in LDAP for username: "+aLogin);
+				LogHelper.customDirectoryLog.debug("Creating/Updating user and roles in User Directory dataset with username: "+aLogin.toLowerCase());
+
+				upsertUser(aLogin,userInfo);
+
+				LogHelper.customDirectoryLog.debug("Authentication SUCCESSFUL using LDAP returning UserReference instance for username: "+aLogin.toLowerCase());
 				return UserReference.forUser(aLogin.toLowerCase());
 			} else {
 				// Ensure we are up to date if we are rejecting logins
 				updateDirProperties();
-				LOGGER.info("User '" + aLogin + "' not found.");
+				LogHelper.customDirectoryLog.info("User '" + aLogin + "' not found.");
 				throw new AuthenticationException("User '" + aLogin + "' not found.\nPlease request access to this EBX system.");
 			}
 		}
@@ -413,8 +422,9 @@ public class HistoryCustomDirectory extends Directory {
 			userRows.add(userObject);
 			userObjectList.setRows(userRows);
 			response = orchestraRestClient.insert("BReference","ReferenceData","root/AssignTo",userObjectList,parameters);
+			LogHelper.customDirectoryLog.debug("Created/Updated user and roles in User Directory dataset with username: "+userId.toLowerCase());
 		} catch (IOException e) {
-			LOGGER.severe("Error upserting user in UserDirectory. "+e.getMessage());
+			LogHelper.customDirectoryLog.error("Error creating/updating user in User Directory dataset",e);
 		}
 	}
 
