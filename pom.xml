@@ -5,7 +5,7 @@
 	<groupId>com.keysight</groupId>
 	<artifactId>ebxldapauth</artifactId>
 	<version>1.0</version>
-	<packaging>war</packaging>
+	<packaging>jar</packaging>
 	<build>
 		<finalName>customdirectory</finalName>
 		<plugins>
@@ -17,7 +17,7 @@
 					<target>1.8</target>
 				</configuration>
 			</plugin>
-<!--			<plugin>
+			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<version>3.1.0</version>
 				<configuration>
@@ -40,7 +40,7 @@
 						</manifest>
 					</archive>
 				</configuration>
-			</plugin>-->
+			</plugin>
 			<plugin>
                 <artifactId>maven-war-plugin</artifactId>
                 <version>3.2.0</version>
@@ -74,6 +74,11 @@
 			<artifactId>snakeyaml</artifactId>
 			<version>1.19</version>
 		</dependency>
+        <dependency>
+            <groupId>com.unboundid</groupId>
+            <artifactId>unboundid-ldapsdk</artifactId>
+            <version>4.0.8</version>
+        </dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>

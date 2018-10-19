@@ -24,6 +24,9 @@ import com.orchestranetworks.ui.UICSSCatalog;
 import com.orchestranetworks.ui.UIHttpManagerComponent;
 import com.orchestranetworks.ui.UIHttpManagerComponent.Scope;
 import com.orchestranetworks.ui.UIHttpManagerComponentBridge;
+import com.unboundid.ldap.sdk.Attribute;
+import com.unboundid.ldap.sdk.SearchResult;
+import com.unboundid.ldap.sdk.SearchResultEntry;
 import org.jasypt.util.text.BasicTextEncryptor;
 import org.yaml.snakeyaml.Yaml;
 
@@ -43,7 +46,7 @@ public class HistoryCustomDirectory extends Directory {
 
 	private final CustomDirectory customDirectory;
 
-	private ExternalDirectory extDir = null;
+	private LdapClientUnboundId clientUnboundId = null;
 
 	private final Repository repo;
 
@@ -70,12 +73,20 @@ public class HistoryCustomDirectory extends Directory {
 
 	private Map<String,Object> propertiesCache;
 
+	protected static final String LDAP_ATTR_FIRSTNAME = "givenName";
+	protected static final String LDAP_ATTR_LASTNAME = "sn";
+	protected static final String LDAP_ATTR_EMAIL = "mail";
+	protected static final String LDAP_ATTR_MEMBEROF = "memberOf";
+
+	protected String membershipBase = null;
+
+
 	protected HistoryCustomDirectory(final AdaptationHome arg0) {
 		super();
 		this.customDirectory = null; // NOT using EBX out of the box directory
 		// this.customDirectory = new CustomDirectory(arg0); // using EBX out of the box directory
 		this.repo = arg0.getRepository();
-		this.extDir = new LdapActiveDirectory();
+		this.clientUnboundId = new LdapClientUnboundId();
 		updateDirProperties();
 	}
 
@@ -93,8 +104,9 @@ public class HistoryCustomDirectory extends Directory {
 			this.enableUserCreation = isTrueDirProp(_ENABLE_CREATION, false);
 			this.loginURI= dirProp(_LOGIN_URI, null);
 
-			if( extDir!=null )
-				extDir.updateDirProperties(props);
+			if( clientUnboundId!=null )
+				clientUnboundId.updateDirProperties(props);
+			this.membershipBase=ldapProp(LdapClientUnboundId.REQ_TOLOGIN_MEMBERSHIP_BASE);
 
 		} catch (final Exception ex) {
 			LogHelper.customDirectoryLog.error("Exception updating directory properties:" + ex.getMessage());
@@ -322,34 +334,106 @@ public class HistoryCustomDirectory extends Directory {
 		final String inputUserPassword = DirectoryDefault.encryptString(aPassword);
 
 		if (realUserPassword!=null && realUserPassword.equals(inputUserPassword)) {
-			LogHelper.customDirectoryLog.debug("User found and password matched in User Directory dataset for username: "+aLogin.toLowerCase());
 			LogHelper.customDirectoryLog.debug("Authentication SUCCESSFUL using User Directory dataset returning UserRefernce instance for username: "+aLogin.toLowerCase());
 			return UserReference.forUser(aLogin.toLowerCase());
-		} else if(extDir!=null){
-			LogHelper.customDirectoryLog.debug("User not found or password did not match in User Directory dataset for username: "+aLogin.toLowerCase());
-			LogHelper.customDirectoryLog.debug("Begin search user in LDAP for username: "+aLogin);
-			ArrayList<AbstractMap.SimpleEntry<String, String>> userInfo = null;
-			try{
-				userInfo = extDir.searchUser(aLogin, aPassword);
-			}catch(Exception e){
-				LogHelper.customDirectoryLog.error("Exception while authenticating against external directory: ",e);
-			}
-			if(userInfo!=null && !userInfo.isEmpty()){
-				LogHelper.customDirectoryLog.debug("User found and password and role matched in LDAP for username: "+aLogin);
-				LogHelper.customDirectoryLog.debug("Creating/Updating user and roles in User Directory dataset with username: "+aLogin.toLowerCase());
-
-				upsertUser(aLogin,userInfo);
-
-				LogHelper.customDirectoryLog.debug("Authentication SUCCESSFUL using LDAP returning UserReference instance for username: "+aLogin.toLowerCase());
+		} else if(clientUnboundId!=null){
+			LogHelper.customDirectoryLog.debug("User not found or password did not match in User Directory dataset; Begin search in LDAP for username: "+aLogin);
+			try {
+				SearchResultEntry userInfo = clientUnboundId.searchLdap(aLogin.toLowerCase(), aPassword);
+				LogHelper.customDirectoryLog.debug("Search in LDAP successful. Result String = "+userInfo.toString());
+				if(userRecord!=null) {
+					LogHelper.customDirectoryLog.debug("Spawning new thread to Create/Update user and roles in User Directory dataset for username: " + aLogin.toLowerCase());
+					Runnable upsertUserThread = () -> {
+						upsertUser(aLogin, userInfo);
+					};
+					new Thread(upsertUserThread).start();
+				}else{
+					LogHelper.customDirectoryLog.debug("Creating/Updating user and roles in User Directory dataset for username: " + aLogin.toLowerCase());
+					upsertUser(aLogin, userInfo);
+				}
+				LogHelper.customDirectoryLog.debug("Authentication SUCCESSFUL using LDAP server; Returning UserReference instance for username: " + aLogin.toLowerCase());
 				return UserReference.forUser(aLogin.toLowerCase());
-			} else {
+			}catch (RuntimeException e){
+				LogHelper.customDirectoryLog.error(String.format("Exception while authenticating %s with LDAP server",aLogin),e);
 				// Ensure we are up to date if we are rejecting logins
 				updateDirProperties();
-				LogHelper.customDirectoryLog.info("User '" + aLogin + "' not found.");
-				throw new AuthenticationException("User '" + aLogin + "' not found.\nPlease request access to this EBX system.");
+				throw new AuthenticationException(e.getMessage());
 			}
 		}
 		return null;
+	}
+
+	private void upsertUser(String userId,SearchResultEntry userInfo){
+		String userFirstName = "";
+		String userLastName = "";
+		String userEmail = null;
+		try {
+			OrchestraRestClient orchestraRestClient = new OrchestraRestClient(getRestProperties());
+			Map<String, String> parameters = new HashMap<String, String>();
+			parameters.put("updateOrInsert", "true");
+
+			//Users
+			userFirstName=userInfo.getAttribute(LDAP_ATTR_FIRSTNAME).getValue();
+			userLastName=userInfo.getAttribute(LDAP_ATTR_LASTNAME).getValue();
+			userEmail=userInfo.getAttribute(LDAP_ATTR_EMAIL).getValue();
+			OrchestraObjectList userObjectList = new OrchestraObjectList();
+			List<OrchestraObject> userRows = new ArrayList<>();
+			OrchestraObject userObject = new OrchestraObject();
+			Map<String,OrchestraContent> userFields = new HashMap<String, OrchestraContent>();
+			userFields.put("userId",new OrchestraContent(userId.toLowerCase()));
+			userFields.put("firstName",new OrchestraContent(userFirstName));
+			userFields.put("lastName",new OrchestraContent(userLastName));
+			userFields.put("email",new OrchestraContent(userEmail));
+			userFields.put("isEbxAdmin",new OrchestraContent(false));
+			userObject.setContent(userFields);
+			userRows.add(userObject);
+			userObjectList.setRows(userRows);
+			Response response = orchestraRestClient.insert("BUserDirectory","UserDirectory","root/Users",userObjectList,parameters);
+
+			//User Roles
+			HashMap<String,String> ebxRoles = new HashMap<>();
+			OrchestraObjectList orchestraObjectList = new OrchestraObjectList();
+			List<OrchestraObject> rows = new ArrayList<>();
+			OrchestraObjectListResponse orchestraObjectListResponse = orchestraRestClient.get("BUserDirectory","UserDirectory","root/Roles",null);
+			if(orchestraObjectListResponse!=null && orchestraObjectListResponse.getRows() != null && !orchestraObjectListResponse.getRows().isEmpty()) {
+				List<OrchestraObjectResponse> resultRows = orchestraObjectListResponse.getRows();
+				for(OrchestraObjectResponse resp:resultRows){
+					String roleName = resp.getContent().get("name").getContent().toString();
+					//ebxRoles.put("CN="+roleName+",CN=Users,DC=KEYSIGHT,DC=COM",roleName);
+					ebxRoles.put("CN="+roleName+","+this.membershipBase,roleName);
+				}
+			}
+			for(String memberOf:userInfo.getAttribute(LDAP_ATTR_MEMBEROF).getValues()) {
+				if (ebxRoles.get(memberOf) != null) {
+					OrchestraObject orchestraObject = new OrchestraObject();
+					Map<String, OrchestraContent> content = new HashMap<String, OrchestraContent>();
+					content.put("userId", new OrchestraContent(userId.toLowerCase()));
+					content.put("roleId", new OrchestraContent(ebxRoles.get(memberOf)));
+					orchestraObject.setContent(content);
+					rows.add(orchestraObject);
+				}
+			}
+			orchestraObjectList.setRows(rows);
+			response = orchestraRestClient.insert("BUserDirectory","UserDirectory","root/UserRole",orchestraObjectList,parameters);
+
+			//AssignTo
+			OrchestraObjectList assignToObjectList = new OrchestraObjectList();
+			List<OrchestraObject> assignToRows = new ArrayList<>();
+			OrchestraObject assignToObject = new OrchestraObject();
+			Map<String,OrchestraContent> assignToFields = new HashMap<String, OrchestraContent>();
+			assignToFields.put("login",new OrchestraContent(userId.toLowerCase()));
+			assignToFields.put("firstName",new OrchestraContent(userFirstName));
+			assignToFields.put("lastName",new OrchestraContent(userLastName));
+			assignToFields.put("email",new OrchestraContent(userEmail));
+			assignToObject.setContent(assignToFields);
+			assignToRows.add(assignToObject);
+			assignToObjectList.setRows(assignToRows);
+			response = orchestraRestClient.insert("BReference","ReferenceData","root/AssignTo",assignToObjectList,parameters);
+
+			LogHelper.customDirectoryLog.debug("Created/Updated user and roles in User Directory dataset with username: "+userId.toLowerCase());
+		} catch (IOException e) {
+			LogHelper.customDirectoryLog.error("Error creating/updating user in User Directory dataset",e);
+		}
 	}
 
 	private void upsertUser(String userId,List<AbstractMap.SimpleEntry<String, String>> userInfo){
@@ -851,4 +935,12 @@ public class HistoryCustomDirectory extends Directory {
 		return result;
 	}
 
+	protected String ldapProp(final String key) {
+		String val = this.props.getProperty(LdapClientUnboundId.PROPERTY_HEADER + key);
+		if (null != val){
+			final String value = val.replace("\"", "");
+			return value;
+		}
+		return null;
+	}
 }
